@@ -12,19 +12,7 @@ type TransactionLog struct {
 	CreditTotal     float64
 	AutopaysStarted int
 	AutopaysStopped int
-
-	Users map[uint64]*User
-}
-
-type User struct {
-	Balance float64
-	Records []Record
-}
-
-type Record struct {
-	Type      byte
-	Timestamp uint32
-	Amount    float64
+	Users           map[uint64]float64
 }
 
 const (
@@ -32,105 +20,72 @@ const (
 	T_CREDIT
 	T_START
 	T_END
+	T_INVALID
 )
+
+func toNumber(slice []byte, out interface{}) error {
+	return binary.Read(
+		bytes.NewReader(slice),
+		binary.BigEndian,
+		out,
+	)
+}
 
 func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 	var (
 		err error
 
-		currentRecord Record
 		currentUserId uint64
+		currentType   byte
+		currentAmount float64
 
 		binaryIndex int
 		recordIndex int
 
 		transactionLog = &TransactionLog{
-			Users: make(map[uint64]*User, 0),
+			Users: make(map[uint64]float64, 0),
 		}
 	)
 
 	for recordIndex = 0; recordIndex < recordCount; recordIndex++ {
-		switch binaryData[binaryIndex] {
-		case T_DEBIT:
-			currentRecord.Type = T_DEBIT
-		case T_CREDIT:
-			currentRecord.Type = T_CREDIT
-		case T_START:
-			transactionLog.AutopaysStarted++
-			currentRecord.Type = T_START
-		case T_END:
-			transactionLog.AutopaysStopped++
-			currentRecord.Type = T_END
-		default:
-			goto typeErr
+		currentType = binaryData[binaryIndex]
+		if uint8(currentType) >= T_INVALID {
+			panic(fmt.Errorf("invalid type at record %d\n", recordIndex))
 		}
 
-		if err = binary.Read(
-			bytes.NewReader(
-				binaryData[binaryIndex+1:binaryIndex+5],
-			),
-			binary.BigEndian,
-			&currentRecord.Timestamp,
-		); err != nil {
-			goto binaryErr
-		}
-
-		if err = binary.Read(
-			bytes.NewReader(
-				binaryData[binaryIndex+5:binaryIndex+13],
-			),
-			binary.BigEndian,
+		if err = toNumber(
+			binaryData[binaryIndex+5:binaryIndex+13],
 			&currentUserId,
 		); err != nil {
-			goto binaryErr
+			panic(fmt.Errorf("invalid binary at record %d\n", recordIndex))
 		}
 
-		if currentRecord.Type == T_CREDIT || currentRecord.Type == T_DEBIT {
-			if err = binary.Read(
-				bytes.NewReader(
-					binaryData[binaryIndex+13:binaryIndex+21],
-				),
-				binary.BigEndian,
-				&currentRecord.Amount,
+		if currentType == T_CREDIT || currentType == T_DEBIT {
+			if err = toNumber(
+				binaryData[binaryIndex+13:binaryIndex+21],
+				&currentAmount,
 			); err != nil {
-				goto binaryErr
+				panic(fmt.Errorf("invalid binary at record %d\n", recordIndex))
 			}
-
 			binaryIndex += 21
 		} else {
 			binaryIndex += 13
 		}
 
-		if _, ok := transactionLog.Users[currentUserId]; !ok {
-			transactionLog.Users[currentUserId] = &User{
-				Records: make([]Record, 0),
-			}
+		switch currentType {
+		case T_CREDIT:
+			transactionLog.Users[currentUserId] -= currentAmount
+			transactionLog.CreditTotal += currentAmount
+		case T_DEBIT:
+			transactionLog.Users[currentUserId] += currentAmount
+			transactionLog.DebitTotal += currentAmount
+		case T_START:
+			transactionLog.AutopaysStarted++
+		case T_END:
+			transactionLog.AutopaysStopped++
 		}
-
-		if currentRecord.Type == T_CREDIT {
-			transactionLog.Users[currentUserId].Balance -= currentRecord.Amount
-			transactionLog.CreditTotal += currentRecord.Amount
-		} else if currentRecord.Type == T_DEBIT {
-			transactionLog.Users[currentUserId].Balance += currentRecord.Amount
-			transactionLog.DebitTotal += currentRecord.Amount
-		}
-
-		transactionLog.Users[currentUserId].Records = append(
-			transactionLog.Users[currentUserId].Records,
-			currentRecord,
-		)
-
-		currentUserId, currentRecord = 0, Record{}
 	}
 	return transactionLog
-
-typeErr:
-	panic(fmt.Errorf("invalid record type at record %d\n", recordIndex))
-	return nil
-
-binaryErr:
-	panic(fmt.Errorf("invalid binary at record %d\n", recordIndex))
-	return nil
 }
 
 func main() {
@@ -149,16 +104,9 @@ func main() {
 	}
 
 	var recordCount uint32
-	if err = binary.Read(
-		bytes.NewReader(
-			binaryData[5:9],
-		),
-		binary.BigEndian,
-		&recordCount,
-	); err != nil {
+	if err = toNumber(binaryData[5:9], &recordCount); err != nil {
 		panic("invalid record count")
 	}
-
 	transactionLog := NewTransactionLog(binaryData[9:], int(recordCount))
 
 	fmt.Printf(
@@ -175,6 +123,6 @@ func main() {
 
 	fmt.Printf(
 		"balance of user 2456938384156277127:\n\t$%.2f\n",
-		transactionLog.Users[2456938384156277127].Balance,
+		transactionLog.Users[2456938384156277127],
 	)
 }
