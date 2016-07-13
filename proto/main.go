@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
-	"time"
 )
 
 type TransactionLog struct {
@@ -107,9 +106,7 @@ func main() {
 		panic("invalid record count")
 	}
 
-	t := time.Now()
 	transactionLog := NewTransactionLog(binaryData[9:], int(recordCount))
-	fmt.Println(time.Since(t))
 
 	fmt.Printf(
 		"$%.2f total dollars debited\n$%.2f total dollars credited\n\n",
