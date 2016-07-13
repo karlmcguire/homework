@@ -5,12 +5,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
-	"time"
 )
 
 type TransactionLog struct {
-	DebitCount      int
-	CreditCount     int
+	DebitBalance    float64
+	CreditBalance   float64
 	AutopaysStarted int
 	AutopaysStopped int
 
@@ -29,169 +28,144 @@ type Record struct {
 }
 
 const (
-	S_TYPE = iota
-	S_TIMESTAMP
-	S_ID
-	S_AMOUNT
-	S_FINISH
-)
-
-const (
 	T_DEBIT = iota
 	T_CREDIT
 	T_START
 	T_END
 )
 
-func parse(data []byte) *TransactionLog {
+func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 	var (
-		state      = S_TYPE
-		amountFlag bool
-		userId     uint64
-		err        error
-		i          int
-		record     Record
+		err error
+
+		transactionLog *TransactionLog = &TransactionLog{
+			Users: make(map[uint64]*User, 0),
+		}
+
+		currentRecord Record
+		currentUserId uint64
+
+		binaryIndex int
+		recordIndex int
 	)
 
-	tl := &TransactionLog{
-		Users: make(map[uint64]*User, 0),
-	}
-
-	for i < len(data) {
-		switch state {
-		case S_TYPE:
-			switch data[i] {
-			case T_DEBIT:
-				tl.DebitCount++
-				record.Type = T_DEBIT
-				amountFlag = true
-			case T_CREDIT:
-				tl.CreditCount++
-				record.Type = T_CREDIT
-				amountFlag = true
-			case T_START:
-				tl.AutopaysStarted++
-				record.Type = T_START
-				amountFlag = false
-			case T_END:
-				tl.AutopaysStopped++
-				record.Type = T_END
-				amountFlag = false
-			default:
-				goto typeErr
-			}
-
-			i++
-			state = S_TIMESTAMP
-		case S_TIMESTAMP:
-			if err = binary.Read(
-				bytes.NewReader(data[i:i+4]),
-				binary.BigEndian,
-				&record.Timestamp,
-			); err != nil {
-				goto binaryErr
-			}
-
-			i += 4
-			state = S_ID
-		case S_ID:
-			if err = binary.Read(
-				bytes.NewReader(data[i:i+8]),
-				binary.BigEndian,
-				&userId,
-			); err != nil {
-				goto binaryErr
-			}
-
-			i += 8
-			if amountFlag {
-				state = S_AMOUNT
-			} else {
-				state = S_FINISH
-			}
-		case S_AMOUNT:
-			if err = binary.Read(
-				bytes.NewReader(data[i:i+8]),
-				binary.BigEndian,
-				&record.Amount,
-			); err != nil {
-				goto binaryErr
-			}
-
-			i += 8
-			state = S_FINISH
-		case S_FINISH:
-			if _, ok := tl.Users[userId]; !ok {
-				tl.Users[userId] = &User{
-					Records: make([]Record, 0),
-				}
-			}
-
-			switch record.Type {
-			case T_CREDIT:
-				tl.Users[userId].Balance += record.Amount
-			case T_DEBIT:
-				tl.Users[userId].Balance -= record.Amount
-			}
-
-			tl.Users[userId].Records = append(
-				tl.Users[userId].Records,
-				record,
-			)
-
-			userId = 0
-			record = Record{}
-			state = S_TYPE
+	for recordIndex = 0; recordIndex < recordCount; recordIndex++ {
+		switch binaryData[binaryIndex] {
+		case T_DEBIT:
+			currentRecord.Type = T_DEBIT
+		case T_CREDIT:
+			currentRecord.Type = T_CREDIT
+		case T_START:
+			transactionLog.AutopaysStarted++
+			currentRecord.Type = T_START
+		case T_END:
+			transactionLog.AutopaysStopped++
+			currentRecord.Type = T_END
+		default:
+			goto typeErr
 		}
-	}
 
-	return tl
+		if err = binary.Read(
+			bytes.NewReader(
+				binaryData[binaryIndex+1:binaryIndex+5],
+			),
+			binary.BigEndian,
+			&currentRecord.Timestamp,
+		); err != nil {
+			goto binaryErr
+		}
+
+		if err = binary.Read(
+			bytes.NewReader(
+				binaryData[binaryIndex+5:binaryIndex+13],
+			),
+			binary.BigEndian,
+			&currentUserId,
+		); err != nil {
+			goto binaryErr
+		}
+
+		if currentRecord.Type == T_CREDIT || currentRecord.Type == T_DEBIT {
+			if err = binary.Read(
+				bytes.NewReader(
+					binaryData[binaryIndex+13:binaryIndex+21],
+				),
+				binary.BigEndian,
+				&currentRecord.Amount,
+			); err != nil {
+				goto binaryErr
+			}
+
+			binaryIndex += 21
+		} else {
+			binaryIndex += 13
+		}
+
+		if _, ok := transactionLog.Users[currentUserId]; !ok {
+			transactionLog.Users[currentUserId] = &User{
+				Records: make([]Record, 0),
+			}
+		}
+
+		if currentRecord.Type == T_CREDIT {
+			transactionLog.Users[currentUserId].Balance += currentRecord.Amount
+			transactionLog.CreditBalance += currentRecord.Amount
+		} else if currentRecord.Type == T_DEBIT {
+			transactionLog.Users[currentUserId].Balance -= currentRecord.Amount
+			transactionLog.DebitBalance += currentRecord.Amount
+		}
+
+		transactionLog.Users[currentUserId].Records = append(
+			transactionLog.Users[currentUserId].Records,
+			currentRecord,
+		)
+
+		currentUserId, currentRecord = 0, Record{}
+	}
+	return transactionLog
 
 typeErr:
-	panic(fmt.Errorf("invalid record type at byte %d\n", i+9))
+	panic(fmt.Errorf("invalid record type at record %d\n", recordIndex))
 	return nil
 
 binaryErr:
-	panic(fmt.Errorf("invalid binary at byte %d\n", i+9))
+	panic(fmt.Errorf("invalid binary at record %d\n", recordIndex))
 	return nil
 }
 
 func main() {
-	data, err := ioutil.ReadFile("txnlog.dat")
+	binaryData, err := ioutil.ReadFile("txnlog.dat")
 	if err != nil {
 		panic(err)
 	}
-	if len(data) <= 9 {
-		// todo
+	if len(binaryData) < 9 {
 		panic("invalid header")
 	}
-
-	if string(data[:4]) != "MPS7" || data[4] != byte(0x01) {
-		// todo
-		panic("invalid header")
+	if string(binaryData[:4]) != "MPS7" {
+		panic("magic string != MPS7")
+	}
+	if binaryData[4] != byte(0x01) {
+		panic("need version 1")
 	}
 
 	var recordCount uint32
 	if err = binary.Read(
-		bytes.NewReader(data[5:9]),
+		bytes.NewReader(
+			binaryData[5:9],
+		),
 		binary.BigEndian,
 		&recordCount,
 	); err != nil {
 		panic(err)
 	}
 
-	t1 := time.Now()
-	tl := parse(data[9:])
-	t1d := time.Since(t1)
-
-	fmt.Println(t1d)
-
+	transactionLog := NewTransactionLog(binaryData[9:], int(recordCount))
+	fmt.Println(transactionLog.Users[2456938384156277127].Balance)
+	fmt.Println(transactionLog.Users[2456938384156277127].Records)
+	fmt.Println(transactionLog.CreditBalance)
+	fmt.Println(transactionLog.DebitBalance)
 	fmt.Println(
-		time.Unix(
-			int64(
-				tl.Users[2456938384156277127].Records[0].Timestamp,
-			),
-			0,
-		),
+		transactionLog.AutopaysStarted,
+		transactionLog.AutopaysStopped,
 	)
 }
