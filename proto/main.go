@@ -8,8 +8,8 @@ import (
 )
 
 type TransactionLog struct {
-	DebitBalance    float64
-	CreditBalance   float64
+	DebitTotal      float64
+	CreditTotal     float64
 	AutopaysStarted int
 	AutopaysStopped int
 
@@ -109,10 +109,10 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 
 		if currentRecord.Type == T_CREDIT {
 			transactionLog.Users[currentUserId].Balance -= currentRecord.Amount
-			transactionLog.CreditBalance -= currentRecord.Amount
+			transactionLog.CreditTotal += currentRecord.Amount
 		} else if currentRecord.Type == T_DEBIT {
 			transactionLog.Users[currentUserId].Balance += currentRecord.Amount
-			transactionLog.DebitBalance += currentRecord.Amount
+			transactionLog.DebitTotal += currentRecord.Amount
 		}
 
 		transactionLog.Users[currentUserId].Records = append(
@@ -163,8 +163,8 @@ func main() {
 
 	fmt.Printf(
 		"$%.2f total dollars debited\n$%.2f total dollars credited\n\n",
-		transactionLog.DebitBalance,
-		transactionLog.CreditBalance*-1,
+		transactionLog.DebitTotal,
+		transactionLog.CreditTotal,
 	)
 
 	fmt.Printf(
