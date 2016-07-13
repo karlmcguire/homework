@@ -49,11 +49,11 @@ func NewTransactionLog(b []byte, c int) *TransactionLog {
 			panic(fmt.Errorf("invalid type at record %d\n", r))
 		}
 
-		if err = getNumber(b[i+5:i+13], &user); err != nil {
-			panic(fmt.Errorf("invalid binary at record %d\n", r))
-		}
-
 		if iden == DEBIT || iden == CREDIT {
+			if err = getNumber(b[i+5:i+13], &user); err != nil {
+				panic(fmt.Errorf("invalid binary at record %d\n", r))
+			}
+
 			if err = getNumber(b[i+13:i+21], &amount); err != nil {
 				panic(fmt.Errorf("invalid binary at record %d\n", r))
 			}
