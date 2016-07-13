@@ -110,6 +110,7 @@ func main() {
 		panic("invalid record count")
 	}
 
+	// Create a new TransactionLog from the file, skipping the header.
 	transactionLog := NewTransactionLog(b[9:], int(c))
 
 	fmt.Printf(
