@@ -23,11 +23,7 @@ const (
 )
 
 func putNumber(slice []byte, out interface{}) error {
-	return binary.Read(
-		bytes.NewReader(slice),
-		binary.BigEndian,
-		out,
-	)
+	return binary.Read(bytes.NewReader(slice), binary.BigEndian, out)
 }
 
 func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
