@@ -20,7 +20,6 @@ const (
 	T_CREDIT
 	T_START
 	T_END
-	T_INVALID
 )
 
 func toNumber(slice []byte, out interface{}) error {
@@ -49,7 +48,7 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 
 	for recordIndex = 0; recordIndex < recordCount; recordIndex++ {
 		currentType = binaryData[binaryIndex]
-		if uint8(currentType) >= T_INVALID {
+		if uint8(currentType) > T_END {
 			panic(fmt.Errorf("invalid type at record %d\n", recordIndex))
 		}
 
