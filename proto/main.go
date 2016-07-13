@@ -92,7 +92,7 @@ func main() {
 	if string(b[:4]) != "MPS7" {
 		panic("magic string != MPS7")
 	}
-	if b[4] != byte(0x01) {
+	if b[4] != 0x01 {
 		panic("this program was built for version 1")
 	}
 
