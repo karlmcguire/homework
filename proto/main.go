@@ -39,14 +39,13 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 		currentAmount float64
 
 		binaryIndex int
-		recordIndex int
 
 		transactionLog = &TransactionLog{
 			Users: make(map[uint64]float64, 0),
 		}
 	)
 
-	for recordIndex = 0; recordIndex < recordCount; recordIndex++ {
+	for recordIndex := 0; recordIndex < recordCount; recordIndex++ {
 		currentType = binaryData[binaryIndex]
 		if uint8(currentType) > T_END {
 			panic(fmt.Errorf("invalid type at record %d\n", recordIndex))
