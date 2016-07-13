@@ -87,13 +87,13 @@ func main() {
 		panic(err)
 	}
 	if len(b) < 9 {
-		panic("invalid header")
+		panic("incomplete header")
 	}
 	if string(b[:4]) != "MPS7" {
-		panic("magic string != MPS7")
+		panic("invalid header")
 	}
 	if b[4] != 0x01 {
-		panic("this program was built for version 1")
+		panic("version != 1")
 	}
 
 	var c uint32
