@@ -29,7 +29,7 @@ func getNumber(slice []byte, out interface{}) error {
 }
 
 // NewTransactionLog returns a TransactionLog after parsing a MPS7 transaction
-// log byte slice, b, with c being the amount of records.
+// log byte slice, b, with c being the total amount of records.
 func NewTransactionLog(b []byte, c int) *TransactionLog {
 	var (
 		transactionLog = &TransactionLog{
@@ -48,8 +48,7 @@ func NewTransactionLog(b []byte, c int) *TransactionLog {
 
 	for r = 0; r < c; r++ {
 		// Determine current record type.
-		iden = b[i]
-		if iden > END {
+		if iden = b[i]; iden > END {
 			panic(fmt.Errorf("invalid type at record %d\n", r))
 		}
 
