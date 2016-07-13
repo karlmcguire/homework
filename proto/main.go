@@ -38,15 +38,15 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 	var (
 		err error
 
-		transactionLog *TransactionLog = &TransactionLog{
-			Users: make(map[uint64]*User, 0),
-		}
-
 		currentRecord Record
 		currentUserId uint64
 
 		binaryIndex int
 		recordIndex int
+
+		transactionLog = &TransactionLog{
+			Users: make(map[uint64]*User, 0),
+		}
 	)
 
 	for recordIndex = 0; recordIndex < recordCount; recordIndex++ {
@@ -108,10 +108,10 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 		}
 
 		if currentRecord.Type == T_CREDIT {
-			transactionLog.Users[currentUserId].Balance += currentRecord.Amount
-			transactionLog.CreditBalance += currentRecord.Amount
-		} else if currentRecord.Type == T_DEBIT {
 			transactionLog.Users[currentUserId].Balance -= currentRecord.Amount
+			transactionLog.CreditBalance -= currentRecord.Amount
+		} else if currentRecord.Type == T_DEBIT {
+			transactionLog.Users[currentUserId].Balance += currentRecord.Amount
 			transactionLog.DebitBalance += currentRecord.Amount
 		}
 
@@ -145,7 +145,7 @@ func main() {
 		panic("magic string != MPS7")
 	}
 	if binaryData[4] != byte(0x01) {
-		panic("need version 1")
+		panic("this program was built for version 1")
 	}
 
 	var recordCount uint32
@@ -156,16 +156,25 @@ func main() {
 		binary.BigEndian,
 		&recordCount,
 	); err != nil {
-		panic(err)
+		panic("invalid record count")
 	}
 
 	transactionLog := NewTransactionLog(binaryData[9:], int(recordCount))
-	fmt.Println(transactionLog.Users[2456938384156277127].Balance)
-	fmt.Println(transactionLog.Users[2456938384156277127].Records)
-	fmt.Println(transactionLog.CreditBalance)
-	fmt.Println(transactionLog.DebitBalance)
-	fmt.Println(
+
+	fmt.Printf(
+		"$%.2f total dollars debited\n$%.2f total dollars credited\n\n",
+		transactionLog.DebitBalance,
+		transactionLog.CreditBalance*-1,
+	)
+
+	fmt.Printf(
+		"%d autopays were started\n%d autopays were stopped\n\n",
 		transactionLog.AutopaysStarted,
 		transactionLog.AutopaysStopped,
+	)
+
+	fmt.Printf(
+		"balance of user 2456938384156277127:\n\t$%.2f\n",
+		transactionLog.Users[2456938384156277127].Balance,
 	)
 }
