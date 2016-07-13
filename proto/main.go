@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
+	"time"
 )
 
 type TransactionLog struct {
@@ -22,7 +23,7 @@ const (
 	T_END
 )
 
-func toNumber(slice []byte, out interface{}) error {
+func putNumber(slice []byte, out interface{}) error {
 	return binary.Read(
 		bytes.NewReader(slice),
 		binary.BigEndian,
@@ -34,8 +35,8 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 	var (
 		err error
 
-		currentUserId uint64
 		currentType   byte
+		currentUserId uint64
 		currentAmount float64
 
 		binaryIndex int
@@ -51,7 +52,7 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 			panic(fmt.Errorf("invalid type at record %d\n", recordIndex))
 		}
 
-		if err = toNumber(
+		if err = putNumber(
 			binaryData[binaryIndex+5:binaryIndex+13],
 			&currentUserId,
 		); err != nil {
@@ -59,7 +60,7 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 		}
 
 		if currentType == T_CREDIT || currentType == T_DEBIT {
-			if err = toNumber(
+			if err = putNumber(
 				binaryData[binaryIndex+13:binaryIndex+21],
 				&currentAmount,
 			); err != nil {
@@ -102,10 +103,13 @@ func main() {
 	}
 
 	var recordCount uint32
-	if err = toNumber(binaryData[5:9], &recordCount); err != nil {
+	if err = putNumber(binaryData[5:9], &recordCount); err != nil {
 		panic("invalid record count")
 	}
+
+	t := time.Now()
 	transactionLog := NewTransactionLog(binaryData[9:], int(recordCount))
+	fmt.Println(time.Since(t))
 
 	fmt.Printf(
 		"$%.2f total dollars debited\n$%.2f total dollars credited\n\n",
