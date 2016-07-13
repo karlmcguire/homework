@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io/ioutil"
+	"time"
 )
 
 type TransactionLog struct {
@@ -16,67 +17,64 @@ type TransactionLog struct {
 }
 
 const (
-	T_DEBIT = iota
-	T_CREDIT
-	T_START
-	T_END
+	DEBIT = iota
+	CREDIT
+	START
+	END
 )
 
-func putNumber(slice []byte, out interface{}) error {
+func getNumber(slice []byte, out interface{}) error {
 	return binary.Read(bytes.NewReader(slice), binary.BigEndian, out)
 }
 
-func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
+func NewTransactionLog(b []byte, c int) *TransactionLog {
 	var (
-		err error
-
-		currentType   byte
-		currentUserId uint64
-		currentAmount float64
-
-		binaryIndex int
-
 		transactionLog = &TransactionLog{
 			Users: make(map[uint64]float64, 0),
 		}
+
+		iden   byte
+		user   uint64
+		amount float64
+
+		i int
+		r int
+
+		err error
 	)
 
-	for recordIndex := 0; recordIndex < recordCount; recordIndex++ {
-		currentType = binaryData[binaryIndex]
-		if uint8(currentType) > T_END {
-			panic(fmt.Errorf("invalid type at record %d\n", recordIndex))
+	for r = 0; r < c; r++ {
+		iden = b[i]
+		if iden > END {
+			panic(fmt.Errorf("invalid type at record %d\n", r))
 		}
 
-		if err = putNumber(
-			binaryData[binaryIndex+5:binaryIndex+13],
-			&currentUserId,
-		); err != nil {
-			panic(fmt.Errorf("invalid binary at record %d\n", recordIndex))
+		if err = getNumber(b[i+5:i+13], &user); err != nil {
+			panic(fmt.Errorf("invalid binary at record %d\n", r))
 		}
 
-		if currentType == T_DEBIT || currentType == T_CREDIT {
-			if err = putNumber(
-				binaryData[binaryIndex+13:binaryIndex+21],
-				&currentAmount,
-			); err != nil {
-				panic(fmt.Errorf("invalid binary at record %d\n", recordIndex))
+		if iden == DEBIT || iden == CREDIT {
+			if err = getNumber(b[i+13:i+21], &amount); err != nil {
+				panic(fmt.Errorf("invalid binary at record %d\n", r))
 			}
-			binaryIndex += 21
-		} else {
-			binaryIndex += 13
-		}
 
-		switch currentType {
-		case T_DEBIT:
-			transactionLog.Users[currentUserId] += currentAmount
-			transactionLog.DebitTotal += currentAmount
-		case T_CREDIT:
-			transactionLog.Users[currentUserId] -= currentAmount
-			transactionLog.CreditTotal += currentAmount
-		case T_START:
-			transactionLog.AutopaysStarted++
-		case T_END:
-			transactionLog.AutopaysStopped++
+			if iden == DEBIT {
+				transactionLog.Users[user] += amount
+				transactionLog.DebitTotal += amount
+			} else {
+				transactionLog.Users[user] -= amount
+				transactionLog.CreditTotal += amount
+			}
+
+			i += 21
+		} else {
+			if iden == START {
+				transactionLog.AutopaysStarted++
+			} else {
+				transactionLog.AutopaysStopped++
+			}
+
+			i += 13
 		}
 	}
 
@@ -84,26 +82,28 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 }
 
 func main() {
-	binaryData, err := ioutil.ReadFile("txnlog.dat")
+	b, err := ioutil.ReadFile("txnlog.dat")
 	if err != nil {
 		panic(err)
 	}
-	if len(binaryData) < 9 {
+	if len(b) < 9 {
 		panic("invalid header")
 	}
-	if string(binaryData[:4]) != "MPS7" {
+	if string(b[:4]) != "MPS7" {
 		panic("magic string != MPS7")
 	}
-	if binaryData[4] != byte(0x01) {
+	if b[4] != byte(0x01) {
 		panic("this program was built for version 1")
 	}
 
-	var recordCount uint32
-	if err = putNumber(binaryData[5:9], &recordCount); err != nil {
+	var c uint32
+	if err = getNumber(b[5:9], &c); err != nil {
 		panic("invalid record count")
 	}
 
-	transactionLog := NewTransactionLog(binaryData[9:], int(recordCount))
+	t := time.Now()
+	transactionLog := NewTransactionLog(b[9:], int(c))
+	fmt.Println(time.Since(t))
 
 	fmt.Printf(
 		"$%.2f total dollars debited\n$%.2f total dollars credited\n\n",
