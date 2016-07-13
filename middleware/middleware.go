@@ -53,15 +53,15 @@ func ChecksumMiddleware(h http.Handler) http.Handler {
 		checksumHeaders.WriteString(COLONSPACE)
 
 		// Iterate through rec.Header() in lexicographic order.
-		for _, headerKey := range sortedKeys {
+		for _, k := range sortedKeys {
 			// canonResponse + "Key: Value\r\n"
-			canonResponse.WriteString(headerKey)
+			canonResponse.WriteString(k)
 			canonResponse.WriteString(COLONSPACE)
-			canonResponse.WriteString(rec.Header().Get(headerKey))
+			canonResponse.WriteString(rec.Header().Get(k))
 			canonResponse.WriteString(CRLF)
 
 			// checksumHeaders + "Key;"
-			checksumHeaders.WriteString(headerKey)
+			checksumHeaders.WriteString(k)
 			checksumHeaders.WriteString(SEMICOLON)
 		}
 
