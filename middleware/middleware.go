@@ -27,10 +27,12 @@ func ChecksumMiddleware(h http.Handler) http.Handler {
 		h.ServeHTTP(rec, r)
 
 		// sortedKeys stores rec.Header() keys in lexicographic order.
-		sortedKeys := make([]string, 0)
+		sortedKeys := make([]string, len(rec.Header()))
+		i := 0
 		for k, v := range rec.Header() {
 			w.Header()[k] = v
-			sortedKeys = append(sortedKeys, k)
+			sortedKeys[i] = k
+			i++
 		}
 		sort.Strings(sortedKeys)
 
