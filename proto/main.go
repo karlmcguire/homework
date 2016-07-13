@@ -38,7 +38,7 @@ func NewTransactionLog(b []byte, c int) *TransactionLog {
 
 		iden   byte    // current record identifier
 		user   uint64  // current record userId
-		amount float64 // current record amount (used if CREDIT || DEBIT)
+		amount float64 // current record amount (only used if CREDIT || DEBIT)
 
 		i int // current byte index, i < len(b)
 		r int // current record index, r < c
@@ -52,7 +52,6 @@ func NewTransactionLog(b []byte, c int) *TransactionLog {
 			panic(fmt.Errorf("invalid type at record %d\n", r))
 		}
 
-		// Determine if we need to get the userId and amount.
 		if iden == DEBIT || iden == CREDIT {
 			// Attempt to get the userId.
 			if err = getNumber(b[i+5:i+13], &user); err != nil {
@@ -74,6 +73,8 @@ func NewTransactionLog(b []byte, c int) *TransactionLog {
 				transactionLog.CreditTotal += amount
 			}
 
+			// Offset byte index to the next record identifier.
+			// [1]type + [4]timestamp + [8]userId + [8]amount = 21 bytes
 			i += 21
 		} else {
 			if iden == START {
@@ -82,6 +83,8 @@ func NewTransactionLog(b []byte, c int) *TransactionLog {
 				transactionLog.AutopaysStopped++
 			}
 
+			// Offset byte index to the next record identifier.
+			// [1]type + [4]timestamp + [8]userId = 13 bytes
 			i += 13
 		}
 	}
