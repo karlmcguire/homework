@@ -1,2 +1,4 @@
 proto/proto
 proto/run.sh
+middleware/middleware
+middleware/run.sh
