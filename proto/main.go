@@ -47,19 +47,19 @@ func NewTransactionLog(b []byte, c int) *TransactionLog {
 	)
 
 	for r = 0; r < c; r++ {
-		// Determine current record type.
+		// Determine record type.
 		if iden = b[i]; iden > END {
 			panic(fmt.Errorf("invalid type at record %d\n", r))
 		}
 
 		// Determine if we need to get the userId and amount.
 		if iden == DEBIT || iden == CREDIT {
-			// Attempt to get the userId of current record.
+			// Attempt to get the userId.
 			if err = getNumber(b[i+5:i+13], &user); err != nil {
 				panic(fmt.Errorf("invalid userId binary at record %d\n", r))
 			}
 
-			// Attempt to get the amount of current record.
+			// Attempt to get the amount.
 			if err = getNumber(b[i+13:i+21], &amount); err != nil {
 				panic(fmt.Errorf("invalid amount binary at record %d\n", r))
 			}
