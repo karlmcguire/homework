@@ -58,7 +58,7 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 			panic(fmt.Errorf("invalid binary at record %d\n", recordIndex))
 		}
 
-		if currentType == T_CREDIT || currentType == T_DEBIT {
+		if currentType == T_DEBIT || currentType == T_CREDIT {
 			if err = putNumber(
 				binaryData[binaryIndex+13:binaryIndex+21],
 				&currentAmount,
@@ -71,18 +71,19 @@ func NewTransactionLog(binaryData []byte, recordCount int) *TransactionLog {
 		}
 
 		switch currentType {
-		case T_CREDIT:
-			transactionLog.Users[currentUserId] -= currentAmount
-			transactionLog.CreditTotal += currentAmount
 		case T_DEBIT:
 			transactionLog.Users[currentUserId] += currentAmount
 			transactionLog.DebitTotal += currentAmount
+		case T_CREDIT:
+			transactionLog.Users[currentUserId] -= currentAmount
+			transactionLog.CreditTotal += currentAmount
 		case T_START:
 			transactionLog.AutopaysStarted++
 		case T_END:
 			transactionLog.AutopaysStopped++
 		}
 	}
+
 	return transactionLog
 }
 
