@@ -105,6 +105,42 @@ func init() {
 	}
 	slcsp := csv.NewReader(slcspFile)
 
+	outFile, err := os.Create("out.csv")
+	if err != nil {
+		panic(err)
+	}
+
+	var (
+		row    int
+		offset int64
+	)
+	for {
+		if record, err = slcsp.Read(); err != nil {
+			if err == io.EOF {
+				break
+			}
+		}
+
+		outFile.WriteAt([]byte(record[0]), offset)
+		offset += int64(len(record[0]))
+		outFile.WriteAt([]byte(","), offset)
+		offset += 1
+
+		if row == 0 {
+			outFile.WriteAt([]byte(record[1]), offset)
+			offset += int64(len(record[1]))
+			outFile.WriteAt([]byte("\n"), offset)
+			offset += 1
+		} else {
+			outFile.WriteAt([]byte("\n"), offset)
+			offset += 1
+		}
+
+		row++
+	}
+
+	outFile.Sync()
+
 	fmt.Println(slcsp.Read())
 	fmt.Println(len(Zips), len(Plans))
 
