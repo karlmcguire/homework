@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -111,32 +112,31 @@ func init() {
 	}
 
 	var (
-		row    int
+		row    bytes.Buffer
 		offset int64
+		i      int
 	)
 	for {
 		if record, err = slcsp.Read(); err != nil {
 			if err == io.EOF {
 				break
 			}
+			panic(err)
 		}
 
-		outFile.WriteAt([]byte(record[0]), offset)
-		offset += int64(len(record[0]))
-		outFile.WriteAt([]byte(","), offset)
-		offset += 1
+		row.WriteString(record[0])
+		row.WriteString(",")
 
-		if row == 0 {
-			outFile.WriteAt([]byte(record[1]), offset)
-			offset += int64(len(record[1]))
-			outFile.WriteAt([]byte("\n"), offset)
-			offset += 1
-		} else {
-			outFile.WriteAt([]byte("\n"), offset)
-			offset += 1
+		if i == 0 {
+			row.WriteString(record[1])
 		}
 
-		row++
+		row.WriteString("\n")
+
+		outFile.WriteAt(row.Bytes(), offset)
+		offset += int64(row.Len())
+		row.Reset()
+		i++
 	}
 
 	outFile.Sync()
