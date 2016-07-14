@@ -50,7 +50,6 @@ func getSLCSP(zip string) []byte {
 	var (
 		min float64
 		mid float64
-		max float64
 
 		test []float64
 
@@ -66,9 +65,6 @@ func getSLCSP(zip string) []byte {
 			}
 			if (p.Rate < mid && p.Rate > min) || mid == 0 {
 				mid = p.Rate
-			}
-			if (p.Rate < max && p.Rate > mid) || max == 0 {
-				max = p.Rate
 			}
 
 			if zip == "61232" {
