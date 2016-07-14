@@ -108,6 +108,7 @@ func main() {
 	}
 
 	// Determine the total amount of records contained in the file.
+	// [4]magic + [1]version + [4]total amount
 	var c uint32
 	if err = getNumber(b[5:9], &c); err != nil {
 		panic("invalid record count")
