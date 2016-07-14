@@ -53,8 +53,15 @@
 			var household = new function() {
 				this.members = [];
 				this.selfAdded = false;
-			
-				this.addMember = function(list, age, relationship, smoker) {
+		
+				/**
+				 * addMember adds a person to the household's members array and
+				 * updates the .household list.
+				 * @param {String} age 
+				 * @param {String} relationship
+				 * @param {Boolean} smoker
+				 */
+				this.addMember = function(age, relationship, smoker) {
 					if(relationship == "self") {
 						if(household.selfAdded) {
 							alert("You already added yourself.");
@@ -64,8 +71,10 @@
 						}
 					}
 
+					// Get the current number of members in the household.
 					var index = household.members.length;
-					
+				
+					// Create and add the person to the household.
 					household.members = household.members.concat(
 						{
 							"age": age, 
@@ -80,23 +89,29 @@
 					var del = document.createElement("button");
 					del.setAttribute("onclick", "household.delMember(" + index + ")");	
 					del.innerText = "Delete";
-
-					var smokeText = "";
-					if(smoker) {
-						smokeText = ", smoker";
-					}
-
-					var person = document.createTextNode(relationship + ", " + age + smokeText);
 					li.appendChild(del);
+
+					var smokeText = smoker ? ", smoker" : "";
+					
+					var person = document.createTextNode(relationship + ", " + age + smokeText);
 					li.appendChild(person);
+					 
+					var list = document.getElementsByClassName("household")[0];
 					list.appendChild(li);
 				};
 
+				/**
+				 * delMember removes a person from the household's members and
+				 * updates the .household list.
+				 * @param {Number} index - index in members array.
+				 */
 				this.delMember = function(index) {
 					if(household.members[index]["rel"] == "self") {
 						household.selfAdded = false;
 					}
 
+					// Using delete instead of splice so all the other elements
+					// keep their positions in the array.
 					delete household.members[index];	
 
 					var list = document.getElementsByClassName("household")[0];
@@ -106,8 +121,7 @@
 
        		window.onload = function() {
 				var debug = document.getElementsByClassName("debug")[0];
-				var add = document.getElementsByClassName("add")[0];
-				var list = document.getElementsByClassName("household")[0];
+				var addBtn = document.getElementsByClassName("add")[0];
 				
 				var form = document.getElementsByTagName("form")[0];
 				var formRel = document.getElementsByName("rel")[0];
@@ -122,19 +136,21 @@
 						return;
 					}
 
+					// Create a local copy of household.members where empty
+					// elements are removed.
 					var packed = [];
-					
 					for(i = 0; i < household.members.length; i++) {
 						if(household.members[i] != null) {
 							packed = packed.concat(household.members[i]);	
 						}
 					}
 
+					// Display the local copy of household.members.
 					debug.style.display = "block";	
 					debug.innerText = JSON.stringify(packed, null, '    ');
 				});
 
-				add.addEventListener("click", function(e) {
+				addBtn.addEventListener("click", function(e) {
 					e.preventDefault();
 
 					// Validate inputs.
@@ -151,8 +167,9 @@
 						return;
 					}
 				
-					household.addMember(list, formAge.value, formRel.value, formSmoker.checked);
+					household.addMember(formAge.value, formRel.value, formSmoker.checked);
 
+					// Reset inputs.
 					formAge.value = "";
 					formRel.value = "";
 					formSmoker.checked = false;
