@@ -153,15 +153,24 @@
                 addBtn.addEventListener("click", function(e) {
                     e.preventDefault();
 
-                    // Validate inputs.
+                    // Validate age. 
                     if(formAge.value == "") {
                         alert("Age is required.");
                         return;
                     }
-                    if(formAge.value == "0") {
+                    if(isNaN(formAge.value)) {
+                        formAge.value = "";
+                        alert("Invalid age.");
+                        return;
+                    }
+                    var age = Number(formAge.value);
+                    if(age <= 0) {
+                        formAge.value = "";
                         alert("Age must be greater than 0.");
                         return;
                     }
+
+                    // Validate relationship.
                     if(formRel.value == "") {
                         alert("Relationship is required.");
                         return;
