@@ -6,103 +6,71 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strconv"
 )
 
-var RateAreas = make(map[string][]*RateArea, 0)
-
 type RateArea struct {
 	State string
-	Num   int
+	Num   string
 }
 
-func (r *RateArea) String() string {
-	return fmt.Sprintf("%s%d", r.State, r.Num)
-}
-
-var Plans = make(map[string][]*Plan, 0)
-
-type Plan struct {
-	Metal string
-	Rate  float64
-}
-
-func setPlan(metal, rate string, out *Plan) {
-	out.Metal = metal
-
-	var err error
-	if out.Rate, err = strconv.ParseFloat(rate, 8); err != nil {
-		panic(err)
-	}
-}
-
-func setRateArea(state, num string, out *RateArea) {
-	out.State = state
-
-	var err error
-	if out.Num, err = strconv.Atoi(num); err != nil {
-		panic(err)
-	}
-}
+var RateAreas = make(map[string]map[RateArea]struct{}, 0)
+var Plans = make(map[RateArea][]float64, 0)
 
 func getSLCSP(zip string) []byte {
+	// If a zipcode has more than one rate area, it's impossible to determine
+	// the SLCSP from the zipcode alone, as each rate area has a unique SLCSP.
+	if len(RateAreas[zip]) != 1 {
+		return nil
+	}
+
+	// Get rate area for the zipcode. This will only loop once.
+	rateArea := RateArea{}
+	for ra, _ := range RateAreas[zip] {
+		rateArea = ra
+	}
+
+	// Impossible to determine SLCSP if the zipcode's rate area has no silver
+	// plans.
+	if len(Plans[rateArea]) == 0 {
+		return nil
+	}
+
 	var (
-		min float64
-		mid float64
+		rate bytes.Buffer
 
-		test []float64
-
-		buf bytes.Buffer
+		min float64 // FIRST lowest cost silver plan rate
+		mid float64 // SECOND lowest cost silver plan rate
 	)
-	for _, v := range RateAreas[zip] {
-		for _, p := range Plans[v.String()] {
-			if p.Metal != "Silver" {
-				continue
-			}
-			if p.Rate < min || min == 0 {
-				min = p.Rate
-			}
-			if (p.Rate < mid && p.Rate > min) || mid == 0 {
-				mid = p.Rate
-			}
-
-			if zip == "61232" {
-				test = append(test, p.Rate)
-			}
+	for _, rate := range Plans[rateArea] {
+		if rate < min || min == 0 {
+			min = rate
 		}
-
-		if len(Plans[v.String()]) == 0 {
-			fmt.Println(zip)
+		if (rate < mid && rate > min) || mid == 0 {
+			mid = rate
 		}
 	}
 
-	if test != nil {
-		sort.Float64s(test)
+	rate.WriteString(fmt.Sprintf("%.2f", mid))
 
-		fmt.Println(test)
-	}
-
-	if mid != 0.0 {
-		buf.WriteString(fmt.Sprintf("%.2f", mid))
-	}
-
-	return buf.Bytes()
+	return rate.Bytes()
 }
 
+// Load and populate RateAreas and Plans from plans.csv and zips.csv.
 func init() {
 	plansFile, err := os.Open("plans.csv")
 	if err != nil {
 		panic(err)
 	}
-
 	plans := csv.NewReader(plansFile)
-	_, _ = plans.Read()
+
+	// Discard the header line.
+	plans.Read()
 
 	var (
-		plan     = &Plan{}
-		rateArea = &RateArea{}
 		record   []string
+		rate     float64
+		rateArea = RateArea{}
 	)
 	for {
 		if record, err = plans.Read(); err != nil {
@@ -112,31 +80,39 @@ func init() {
 			panic(err)
 		}
 
-		setPlan(
-			record[2], // metal
-			record[3], // rate
-			plan,
+		// Only silver plans are used to determine SLCSPs.
+		if record[2] != "Silver" {
+			continue
+		}
+
+		// Get the rate area this silver plan belongs to.
+		rateArea = RateArea{
+			State: record[1],
+			Num:   record[4],
+		}
+
+		// Get the rate of this silver plan.
+		if rate, err = strconv.ParseFloat(record[3], 8); err != nil {
+			panic(err)
+		}
+
+		// Add this silver plan to the rate area's collection.
+		Plans[rateArea] = append(
+			Plans[rateArea],
+			rate,
 		)
 
-		setRateArea(
-			record[1], // state letters
-			record[4], // number
-			rateArea,
-		)
-
-		Plans[rateArea.String()] = append(Plans[rateArea.String()], plan)
-
-		rateArea = &RateArea{}
-		plan = &Plan{}
+		rateArea = RateArea{}
 	}
 
 	zipsFile, err := os.Open("zips.csv")
 	if err != nil {
 		panic(err)
 	}
-
 	zips := csv.NewReader(zipsFile)
-	_, _ = zips.Read()
+
+	// Discard the header line.
+	zips.Read()
 
 	for {
 		if record, err = zips.Read(); err != nil {
@@ -146,15 +122,20 @@ func init() {
 			panic(err)
 		}
 
-		setRateArea(
-			record[1], // state letters
-			record[4], // number
-			rateArea,
-		)
+		// Get a rate area of this zip.
+		rateArea = RateArea{
+			State: record[1],
+			Num:   record[4],
+		}
 
-		RateAreas[record[0]] = append(RateAreas[record[0]], rateArea)
+		if _, ok := RateAreas[record[0]]; !ok {
+			RateAreas[record[0]] = make(map[RateArea]struct{}, 0)
+		}
 
-		rateArea = &RateArea{}
+		// Update the zipcode's list of rate areas.
+		RateAreas[record[0]][rateArea] = struct{}{}
+
+		rateArea = RateArea{}
 	}
 }
 
@@ -165,16 +146,16 @@ func main() {
 	}
 	slcsp := csv.NewReader(slcspFile)
 
-	outFile, err := os.Create("out.csv")
+	outFile, err := os.Create("slcsp_full.csv")
 	if err != nil {
 		panic(err)
 	}
 
 	var (
 		row    bytes.Buffer
-		offset int64
 		record []string
 		i      int
+		offset int64 // current byte position in the file
 	)
 	for {
 		if record, err = slcsp.Read(); err != nil {
@@ -187,6 +168,7 @@ func main() {
 		row.WriteString(record[0])
 		row.WriteString(",")
 
+		// If current line is the header, don't attempt to get the SLCSP.
 		if i == 0 {
 			row.WriteString(record[1])
 		} else {
