@@ -72,7 +72,7 @@ func ChecksumMiddleware(h http.Handler) http.Handler {
 		checksumHeaders.WriteString(CRLF)
 		checksumHeaders.WriteString(CRLF)
 
-		// canonResponse + "X-Checksum-Headers: Key1;Key2;Key3;...\r\n"
+		// canonResponse + "X-Checksum-Headers: Key1;Key2;Key3;...\r\n\r\n"
 		canonResponse.Write(checksumHeaders.Bytes())
 
 		// canonResponse + content
