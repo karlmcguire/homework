@@ -50,131 +50,131 @@
         </div>
         <pre class="debug"></pre>
         <script>
-			var household = new function() {
-				this.members = [];
-				this.selfAdded = false;
-		
-				/**
-				 * addMember adds a person to the household's members array and
-				 * updates the .household list.
-				 * @param {String} age 
-				 * @param {String} relationship
-				 * @param {Boolean} smoker
-				 */
-				this.addMember = function(age, relationship, smoker) {
-					if(relationship == "self") {
-						if(household.selfAdded) {
-							alert("You already added yourself.");
-							return;
-						} else {
-							household.selfAdded = true;
-						}
-					}
+            var household = new function() {
+                this.members = [];
+                this.selfAdded = false;
+        
+                /**
+                 * addMember adds a person to the household's members array and
+                 * updates the .household list.
+                 * @param {String} age 
+                 * @param {String} relationship
+                 * @param {Boolean} smoker
+                 */
+                this.addMember = function(age, relationship, smoker) {
+                    if(relationship == "self") {
+                        if(household.selfAdded) {
+                            alert("You already added yourself.");
+                            return;
+                        } else {
+                            household.selfAdded = true;
+                        }
+                    }
 
-					// Get the current number of members in the household.
-					var index = household.members.length;
-				
-					// Create and add the person to the household.
-					household.members = household.members.concat(
-						{
-							"age": age, 
-							"rel": relationship, 
-							"smoker": smoker
-						}
-					);
+                    // Get the current number of members in the household.
+                    var index = household.members.length;
+                
+                    // Create and add the person to the household.
+                    household.members = household.members.concat(
+                        {
+                            "age": age, 
+                            "rel": relationship, 
+                            "smoker": smoker
+                        }
+                    );
 
-					var li = document.createElement("li");
-					li.setAttribute("id", index);
+                    var li = document.createElement("li");
+                    li.setAttribute("id", index);
 
-					var del = document.createElement("button");
-					del.setAttribute("onclick", "household.delMember(" + index + ")");	
-					del.innerText = "Delete";
-					li.appendChild(del);
+                    var del = document.createElement("button");
+                    del.setAttribute("onclick", "household.delMember(" + index + ")");  
+                    del.innerText = "Delete";
+                    li.appendChild(del);
 
-					var smokeText = smoker ? ", smoker" : "";
-					
-					var person = document.createTextNode(relationship + ", " + age + smokeText);
-					li.appendChild(person);
-					 
-					var list = document.getElementsByClassName("household")[0];
-					list.appendChild(li);
-				};
+                    var smokeText = smoker ? ", smoker" : "";
+                    
+                    var person = document.createTextNode(relationship + ", " + age + smokeText);
+                    li.appendChild(person);
+                     
+                    var list = document.getElementsByClassName("household")[0];
+                    list.appendChild(li);
+                };
 
-				/**
-				 * delMember removes a person from the household's members and
-				 * updates the .household list.
-				 * @param {Number} index - index in members array.
-				 */
-				this.delMember = function(index) {
-					if(household.members[index]["rel"] == "self") {
-						household.selfAdded = false;
-					}
+                /**
+                 * delMember removes a person from the household's members and
+                 * updates the .household list.
+                 * @param {Number} index - index in members array.
+                 */
+                this.delMember = function(index) {
+                    if(household.members[index]["rel"] == "self") {
+                        household.selfAdded = false;
+                    }
 
-					// Using delete instead of splice so all the other elements
-					// keep their positions in the array.
-					delete household.members[index];	
+                    // Using delete instead of splice so all the other elements
+                    // keep their positions in the array.
+                    delete household.members[index];    
 
-					var list = document.getElementsByClassName("household")[0];
-					list.removeChild(document.getElementById(index));
-				};
-			};
+                    var list = document.getElementsByClassName("household")[0];
+                    list.removeChild(document.getElementById(index));
+                };
+            };
 
-       		window.onload = function() {
-				var debug = document.getElementsByClassName("debug")[0];
-				var addBtn = document.getElementsByClassName("add")[0];
-				
-				var form = document.getElementsByTagName("form")[0];
-				var formRel = document.getElementsByName("rel")[0];
-				var formSmoker = document.getElementsByName("smoker")[0];
-				var formAge = document.getElementsByName("age")[0];
+            window.onload = function() {
+                var debug = document.getElementsByClassName("debug")[0];
+                var addBtn = document.getElementsByClassName("add")[0];
+                
+                var form = document.getElementsByTagName("form")[0];
+                var formRel = document.getElementsByName("rel")[0];
+                var formSmoker = document.getElementsByName("smoker")[0];
+                var formAge = document.getElementsByName("age")[0];
 
-				form.addEventListener("submit", function(e) {	
-					e.preventDefault();
+                form.addEventListener("submit", function(e) {   
+                    e.preventDefault();
 
-					if(!household.selfAdded) {
-						alert("You need to add yourself before submitting.");
-						return;
-					}
+                    if(!household.selfAdded) {
+                        alert("You need to add yourself before submitting.");
+                        return;
+                    }
 
-					// Create a local copy of household.members where empty
-					// elements are removed.
-					var packed = [];
-					for(i = 0; i < household.members.length; i++) {
-						if(household.members[i] != null) {
-							packed = packed.concat(household.members[i]);	
-						}
-					}
+                    // Create a local copy of household.members where empty
+                    // elements are removed.
+                    var packed = [];
+                    for(i = 0; i < household.members.length; i++) {
+                        if(household.members[i] != null) {
+                            packed = packed.concat(household.members[i]);   
+                        }
+                    }
 
-					// Display the local copy of household.members.
-					debug.style.display = "block";	
-					debug.innerText = JSON.stringify(packed, null, '    ');
-				});
+                    // Display the local copy of household.members.
+                    debug.style.display = "block";  
+                    debug.innerText = JSON.stringify(packed, null, '    ');
+                });
 
-				addBtn.addEventListener("click", function(e) {
-					e.preventDefault();
+                addBtn.addEventListener("click", function(e) {
+                    e.preventDefault();
 
-					// Validate inputs.
-					if(formAge.value == "") {
-						alert("Age is required.");
-						return;
-					}
-					if(formAge.value == "0") {
-						alert("Age must be greater than 0.");
-						return;
-					}
-					if(formRel.value == "") {
-						alert("Relationship is required.");
-						return;
-					}
-				
-					household.addMember(formAge.value, formRel.value, formSmoker.checked);
+                    // Validate inputs.
+                    if(formAge.value == "") {
+                        alert("Age is required.");
+                        return;
+                    }
+                    if(formAge.value == "0") {
+                        alert("Age must be greater than 0.");
+                        return;
+                    }
+                    if(formRel.value == "") {
+                        alert("Relationship is required.");
+                        return;
+                    }
+                
+                    household.addMember(formAge.value, formRel.value, formSmoker.checked);
 
-					// Reset inputs.
-					formAge.value = "";
-					formRel.value = "";
-					formSmoker.checked = false;
-				});
-			};
-		</script>
+                    // Reset inputs.
+                    formAge.value = "";
+                    formRel.value = "";
+                    formSmoker.checked = false;
+                });
+            };
+        </script>
     </body>
 </html>
