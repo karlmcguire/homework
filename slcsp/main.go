@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 )
 
@@ -18,13 +19,59 @@ type County struct {
 	RateArea int
 }
 
-var Plans = make(map[string]*Plan, 0)
+var Plans = make(map[Id][]*Plan, 0)
 
 type Plan struct {
+	Metal string
+	Rate  float64
+}
+
+type Id struct {
 	State    string
-	Metal    string
-	Rate     float64
 	RateArea int
+}
+
+func getSLCSP(zip string) []byte {
+	var (
+		min float64
+		mid float64
+		max float64
+
+		test []float64
+
+		buf bytes.Buffer
+	)
+	for _, v := range Zips[zip] {
+		for _, p := range Plans[Id{v.State, v.RateArea}] {
+			if p.Metal != "Silver" {
+				continue
+			}
+
+			if p.Rate < min || min == 0 {
+				min = p.Rate
+			}
+			if (p.Rate < mid && p.Rate > min) || mid == 0 {
+				mid = p.Rate
+			}
+			if (p.Rate < max && p.Rate > mid) || max == 0 {
+				max = p.Rate
+			}
+
+			if zip == "61232" {
+				test = append(test, p.Rate)
+			}
+		}
+	}
+
+	sort.Float64s(test)
+
+	fmt.Println(test)
+
+	if mid != 0.0 {
+		buf.WriteString(fmt.Sprintf("%.2f", mid))
+	}
+
+	return buf.Bytes()
 }
 
 func init() {
@@ -39,6 +86,7 @@ func init() {
 
 	var (
 		plan   = &Plan{}
+		id     = Id{}
 		record []string
 	)
 	for {
@@ -49,20 +97,21 @@ func init() {
 			panic(err)
 		}
 
-		plan.State = record[1]
+		id.State = record[1]
 		plan.Metal = record[2]
 
 		if plan.Rate, err = strconv.ParseFloat(record[3], 8); err != nil {
 			panic(err)
 		}
 
-		if plan.RateArea, err = strconv.Atoi(record[4]); err != nil {
+		if id.RateArea, err = strconv.Atoi(record[4]); err != nil {
 			panic(err)
 		}
 
-		Plans[record[0]] = plan
+		Plans[id] = append(Plans[id], plan)
 
 		plan = &Plan{}
+		id = Id{}
 	}
 
 	zipsFile, err := os.Open("zips.csv")
@@ -99,7 +148,9 @@ func init() {
 
 		county = &County{}
 	}
+}
 
+func main() {
 	slcspFile, err := os.Open("slcsp.csv")
 	if err != nil {
 		panic(err)
@@ -114,6 +165,7 @@ func init() {
 	var (
 		row    bytes.Buffer
 		offset int64
+		record []string
 		i      int
 	)
 	for {
@@ -129,23 +181,18 @@ func init() {
 
 		if i == 0 {
 			row.WriteString(record[1])
+		} else {
+			row.Write(getSLCSP(record[0]))
 		}
 
 		row.WriteString("\n")
 
 		outFile.WriteAt(row.Bytes(), offset)
+
 		offset += int64(row.Len())
 		row.Reset()
 		i++
 	}
 
 	outFile.Sync()
-
-	fmt.Println(slcsp.Read())
-	fmt.Println(len(Zips), len(Plans))
-
-}
-
-func main() {
-
 }
