@@ -38,7 +38,7 @@ func NewTransactionLog(b []byte, c int) *TransactionLog {
 
 		iden   byte    // current record identifier
 		user   uint64  // current record userId
-		amount float64 // current record amount (only used if CREDIT || DEBIT)
+		amount float64 // current record amount (only used if CREDIT or DEBIT)
 
 		i int // current byte index, i < len(b)
 		r int // current record index, r < c
