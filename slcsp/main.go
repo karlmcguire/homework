@@ -10,25 +10,40 @@ import (
 	"strconv"
 )
 
-var Zips = make(map[string][]*County, 0)
+var RateAreas = make(map[string][]*RateArea, 0)
 
-type County struct {
-	State    string
-	Fips     int
-	Name     string
-	RateArea int
+type RateArea struct {
+	State string
+	Num   int
 }
 
-var Plans = make(map[Id][]*Plan, 0)
+func (r *RateArea) String() string {
+	return fmt.Sprintf("%s%d", r.State, r.Num)
+}
+
+var Plans = make(map[string][]*Plan, 0)
 
 type Plan struct {
 	Metal string
 	Rate  float64
 }
 
-type Id struct {
-	State    string
-	RateArea int
+func setPlan(metal, rate string, out *Plan) {
+	out.Metal = metal
+
+	var err error
+	if out.Rate, err = strconv.ParseFloat(rate, 8); err != nil {
+		panic(err)
+	}
+}
+
+func setRateArea(state, num string, out *RateArea) {
+	out.State = state
+
+	var err error
+	if out.Num, err = strconv.Atoi(num); err != nil {
+		panic(err)
+	}
 }
 
 func getSLCSP(zip string) []byte {
@@ -41,12 +56,11 @@ func getSLCSP(zip string) []byte {
 
 		buf bytes.Buffer
 	)
-	for _, v := range Zips[zip] {
-		for _, p := range Plans[Id{v.State, v.RateArea}] {
+	for _, v := range RateAreas[zip] {
+		for _, p := range Plans[v.String()] {
 			if p.Metal != "Silver" {
 				continue
 			}
-
 			if p.Rate < min || min == 0 {
 				min = p.Rate
 			}
@@ -61,11 +75,17 @@ func getSLCSP(zip string) []byte {
 				test = append(test, p.Rate)
 			}
 		}
+
+		if len(Plans[v.String()]) == 0 {
+			fmt.Println(zip)
+		}
 	}
 
-	sort.Float64s(test)
+	if test != nil {
+		sort.Float64s(test)
 
-	fmt.Println(test)
+		fmt.Println(test)
+	}
 
 	if mid != 0.0 {
 		buf.WriteString(fmt.Sprintf("%.2f", mid))
@@ -75,19 +95,18 @@ func getSLCSP(zip string) []byte {
 }
 
 func init() {
-	var err error
-
 	plansFile, err := os.Open("plans.csv")
 	if err != nil {
 		panic(err)
 	}
+
 	plans := csv.NewReader(plansFile)
 	_, _ = plans.Read()
 
 	var (
-		plan   = &Plan{}
-		id     = Id{}
-		record []string
+		plan     = &Plan{}
+		rateArea = &RateArea{}
+		record   []string
 	)
 	for {
 		if record, err = plans.Read(); err != nil {
@@ -97,33 +116,32 @@ func init() {
 			panic(err)
 		}
 
-		id.State = record[1]
-		plan.Metal = record[2]
+		setPlan(
+			record[2], // metal
+			record[3], // rate
+			plan,
+		)
 
-		if plan.Rate, err = strconv.ParseFloat(record[3], 8); err != nil {
-			panic(err)
-		}
+		setRateArea(
+			record[1], // state letters
+			record[4], // number
+			rateArea,
+		)
 
-		if id.RateArea, err = strconv.Atoi(record[4]); err != nil {
-			panic(err)
-		}
+		Plans[rateArea.String()] = append(Plans[rateArea.String()], plan)
 
-		Plans[id] = append(Plans[id], plan)
-
+		rateArea = &RateArea{}
 		plan = &Plan{}
-		id = Id{}
 	}
 
 	zipsFile, err := os.Open("zips.csv")
 	if err != nil {
 		panic(err)
 	}
+
 	zips := csv.NewReader(zipsFile)
 	_, _ = zips.Read()
 
-	var (
-		county = &County{}
-	)
 	for {
 		if record, err = zips.Read(); err != nil {
 			if err == io.EOF {
@@ -132,21 +150,15 @@ func init() {
 			panic(err)
 		}
 
-		county.State = record[1]
+		setRateArea(
+			record[1], // state letters
+			record[4], // number
+			rateArea,
+		)
 
-		if county.Fips, err = strconv.Atoi(record[2]); err != nil {
-			panic(err)
-		}
+		RateAreas[record[0]] = append(RateAreas[record[0]], rateArea)
 
-		county.Name = record[3]
-
-		if county.RateArea, err = strconv.Atoi(record[4]); err != nil {
-			panic(err)
-		}
-
-		Zips[record[0]] = append(Zips[record[0]], county)
-
-		county = &County{}
+		rateArea = &RateArea{}
 	}
 }
 
